@@ -16,6 +16,11 @@ public class BirdController : MonoBehaviour
     [Header("Animation")]
     [SerializeField] private Sprite[] flyingSprites;
     [SerializeField] private float flapFramesPerSecond = 10f;
+    
+    [SerializeField] private AudioSource audioSource;
+
+    [SerializeField] private AudioClip flapSound;
+    [SerializeField] private AudioClip hitSound;
 
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
@@ -27,11 +32,16 @@ public class BirdController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        
+        rb.gravityScale = 0f; // 👈 agregar esta línea para que empiece parado
     }
 
     private void Update()
     {
-        AnimateBird();
+        if (gameManager.State == GameManager.GameState.Playing)
+        {
+            AnimateBird();
+        }
 
         if (gameManager.State == GameManager.GameState.Playing)
         {
@@ -47,16 +57,22 @@ public class BirdController : MonoBehaviour
     public void OnWaitingToStart()
     {
         canControl = false;
-        rb.simulated = true;
-        rb.velocity = Vector2.zero;
-        rb.gravityScale = 0f;
+    
+        rb.linearVelocity = Vector2.zero;      // 👈 detener movimiento
+        rb.angularVelocity = 0f;         // 👈 detener rotación
+        rb.gravityScale = 0f;            // 👈 sin gravedad
+        rb.simulated = false;            // 👈 🔥 CLAVE: desactiva física totalmente
+    
         transform.rotation = Quaternion.identity;
     }
 
     public void OnGameStarted()
     {
         canControl = true;
-        rb.gravityScale = 1f;
+    
+        rb.simulated = true;   // 👈 volver a activar física
+        rb.gravityScale = 4f;
+    
         Flap();
     }
 
@@ -72,13 +88,14 @@ public class BirdController : MonoBehaviour
             return;
         }
 
-        rb.velocity = new Vector2(rb.velocity.x, 0f);
+        rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
         rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
+        audioSource.PlayOneShot(flapSound);
     }
 
     private void RotateBird()
     {
-        float t = Mathf.InverseLerp(-8f, 6f, rb.velocity.y);
+        float t = Mathf.InverseLerp(-8f, 6f, rb.linearVelocity.y);
         float targetRotation = Mathf.Lerp(maxDownRotation, maxUpRotation, t);
         Quaternion target = Quaternion.Euler(0f, 0f, targetRotation);
         transform.rotation = Quaternion.Lerp(transform.rotation, target, rotationLerpSpeed * Time.deltaTime);
@@ -107,6 +124,7 @@ public class BirdController : MonoBehaviour
         {
             return;
         }
+        audioSource.PlayOneShot(hitSound);
 
         gameManager.TriggerGameOver();
     }
@@ -123,7 +141,7 @@ public class BirdController : MonoBehaviour
             gameManager.AddScore();
             return;
         }
-
+        audioSource.PlayOneShot(hitSound);
         gameManager.TriggerGameOver();
     }
 

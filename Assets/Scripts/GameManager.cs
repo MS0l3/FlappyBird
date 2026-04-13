@@ -1,4 +1,6 @@
+using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
@@ -16,16 +18,21 @@ public class GameManager : MonoBehaviour
     [SerializeField] private BirdController bird;
     [SerializeField] private PipeSpawner pipeSpawner;
 
-    [Header("UI")]
+    [Header("UI Panels")]
     [SerializeField] private GameObject startPanel;
     [SerializeField] private GameObject gameOverPanel;
-    [SerializeField] private Text currentScoreText;
-    [SerializeField] private Text gameOverScoreText;
-    [SerializeField] private Text bestScoreText;
-    [SerializeField] private Text startHintText;
+
+    [Header("UI Text Objects (Text o TMP)")]
+    [SerializeField] private GameObject currentScoreTextObject;
+    [SerializeField] private GameObject gameOverScoreTextObject;
+    [SerializeField] private GameObject bestScoreTextObject;
+    [SerializeField] private GameObject startHintTextObject;
 
     [Header("Gameplay")]
     [SerializeField] private bool autoRestartOnTap = true;
+    
+    [SerializeField] private AudioSource audioSource;
+    [SerializeField] private AudioClip scoreSound;
 
     private int currentScore;
     private int bestScore;
@@ -44,18 +51,21 @@ public class GameManager : MonoBehaviour
 
     private void Update()
     {
-        if (IsStartInputPressed())
+        if (!IsStartInputPressed())
         {
-            if (State == GameState.WaitingToStart)
-            {
-                StartGame();
-            }
-            else if (State == GameState.GameOver && autoRestartOnTap)
-            {
-                RestartGame();
-            }
+            return;
+        }
+
+        if (State == GameState.WaitingToStart)
+        {
+            StartGame();
+        }
+        else if (State == GameState.GameOver && autoRestartOnTap)
+        {
+            RestartGame();
         }
     }
+    
 
     public void AddScore(int amount = 1)
     {
@@ -65,6 +75,7 @@ public class GameManager : MonoBehaviour
         }
 
         currentScore += amount;
+        audioSource.PlayOneShot(scoreSound);
         RefreshScoreUI();
     }
 
@@ -88,14 +99,13 @@ public class GameManager : MonoBehaviour
         pipeSpawner.StopSpawning();
 
         gameOverPanel.SetActive(true);
-        gameOverScoreText.text = $"Current Score: {currentScore}";
-        bestScoreText.text = $"Best Score: {bestScore}";
+        SetUIText(gameOverScoreTextObject, $"Current Score: {currentScore}");
+        SetUIText(bestScoreTextObject, $"Best Score: {bestScore}");
     }
 
     public void RestartGame()
     {
-        UnityEngine.SceneManagement.SceneManager.LoadScene(
-            UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     private void StartGame()
@@ -114,19 +124,14 @@ public class GameManager : MonoBehaviour
     private void EnterWaitingState()
     {
         State = GameState.WaitingToStart;
-
         currentScore = 0;
 
         gameOverPanel.SetActive(false);
         startPanel.SetActive(true);
 
-        if (startHintText != null)
-        {
-            startHintText.text = "Tap screen or press X to fly";
-        }
-
+        SetUIText(startHintTextObject, "Tap screen or press X to fly");
         RefreshScoreUI();
-        bestScoreText.text = $"Best Score: {bestScore}";
+        SetUIText(bestScoreTextObject, $"Best Score: {bestScore}");
 
         bird.OnWaitingToStart();
         pipeSpawner.ResetSpawner();
@@ -134,7 +139,28 @@ public class GameManager : MonoBehaviour
 
     private void RefreshScoreUI()
     {
-        currentScoreText.text = currentScore.ToString();
+        SetUIText(currentScoreTextObject, currentScore.ToString());
+    }
+
+    private static void SetUIText(GameObject textObject, string value)
+    {
+        if (textObject == null)
+        {
+            return;
+        }
+
+        TMP_Text tmpText = textObject.GetComponent<TMP_Text>();
+        if (tmpText != null)
+        {
+            tmpText.text = value;
+            return;
+        }
+
+        Text legacyText = textObject.GetComponent<Text>();
+        if (legacyText != null)
+        {
+            legacyText.text = value;
+        }
     }
 
     private static bool IsStartInputPressed()
